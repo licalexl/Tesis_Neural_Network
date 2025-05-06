@@ -3,13 +3,57 @@ using System.Collections.Generic;
 using System;
 using Random = UnityEngine.Random;
 
-// Controla el comportamiento individual de cada NPC.
-// Maneja los sensores, la red neuronal, el movimiento y el cálculo de fitness.
-// Incluye soporte para saltos, detección de aliados/enemigos y prevención de loops.
 
 public class NPCController : MonoBehaviour
 {
     // Enum para definir el tipo de NPC
+    private List<bool> jumpNecessityHistory = new List<bool>();
+
+    // Variables para estadísticas de salto
+    [Header("Estadísticas de Salto")]
+    [Tooltip("Número de saltos necesarios realizados")]
+    public int necessaryJumps = 0;
+    [Tooltip("Número de saltos innecesarios realizados")]
+    public int unnecessaryJumps = 0;
+
+    // Energía para limitar saltos excesivos
+    [Header("Sistema de Energía")]
+    [Tooltip("Energía actual del NPC")]
+    public float energy = 100f;
+    [Tooltip("Costo energético de un salto")]
+    public float jumpEnergyCost = 5f;
+    [Tooltip("Recuperación de energía por segundo")]
+    public float energyRecoveryRate = 1f;
+
+
+
+    [Header("Detección de Seguimiento de Paredes")]
+    [Tooltip("Distancia máxima para considerar que está siguiendo una pared")]
+    public float wallFollowingDistance = 2.0f;
+    [Tooltip("Ángulo para la detección lateral de paredes")]
+    public float wallDetectionAngle = 60f;
+    [Tooltip("Tiempo continuo que debe seguir una pared para ser penalizado")]
+    public float wallFollowingThreshold = 3.0f;
+    [Tooltip("Penalización por seguir paredes")]
+    public float wallFollowingPenalty = 2.0f;
+
+    // Variables privadas para seguimiento
+    private float wallFollowingTime = 0f;
+    private bool isFollowingWall = false;
+    private Vector3 lastWallPosition;
+
+    [Header("Recompensa por Exploración Central")]
+    [Tooltip("Bonus por explorar áreas centrales del mapa")]
+    public float centralAreaBonus = 5f;
+    [Tooltip("Radio considerado como área central")]
+    public float centralAreaRadius = 15f;
+    [Tooltip("Centro del mapa/nivel")]
+    public Vector3 mapCenter = Vector3.zero;
+
+
+  
+
+
     public enum NPCType
     {
         Ally,
@@ -129,7 +173,7 @@ public class NPCController : MonoBehaviour
     private HashSet<Vector2Int> visitedCells = new HashSet<Vector2Int>();
     private int uniqueAreasVisited = 0;
     private float distanceFromStart = 0f;
-    private int consecutiveCircles = 0;
+    public int consecutiveCircles = 0;
     private float lastAngle = 0f;
     private float totalRotation = 0f;
 
@@ -192,12 +236,22 @@ public class NPCController : MonoBehaviour
         // Verificar si está en el suelo
         CheckGrounded();
 
+        // Recuperar energía con el tiempo
+        if (energy < 100f)
+        {
+            energy += energyRecoveryRate * Time.fixedDeltaTime;
+            energy = Mathf.Min(energy, 100f); // Limitar a 100
+        }
+
         // Aplicamos las acciones determinadas por la red neuronal
         ApplyOutputs();
 
         // Nuevas verificaciones anti-loop
         CheckForLoopingBehavior();
         UpdateExplorationTracking();
+
+        // Verificar seguimiento de paredes
+        CheckWallFollowing();
 
         // Actualizamos la puntuación de fitness
         UpdateFitness();
@@ -206,6 +260,74 @@ public class NPCController : MonoBehaviour
         CheckIdleStatus();
     }
 
+    void CheckWallFollowing()
+    {
+        // Configurar los rayos laterales para detectar paredes
+        Vector3 leftRayStart = transform.position + Vector3.up * sensorHeight;
+        Vector3 rightRayStart = leftRayStart;
+        Vector3 leftRayDir = Quaternion.Euler(0, -wallDetectionAngle, 0) * transform.forward;
+        Vector3 rightRayDir = Quaternion.Euler(0, wallDetectionAngle, 0) * transform.forward;
+
+        RaycastHit leftHit, rightHit;
+        bool leftWallDetected = Physics.Raycast(leftRayStart, leftRayDir, out leftHit, wallFollowingDistance);
+        bool rightWallDetected = Physics.Raycast(rightRayStart, rightRayDir, out rightHit, wallFollowingDistance);
+
+        // Visualización para depuración
+        Debug.DrawRay(leftRayStart, leftRayDir * wallFollowingDistance, leftWallDetected ? Color.red : Color.green);
+        Debug.DrawRay(rightRayStart, rightRayDir * wallFollowingDistance, rightWallDetected ? Color.red : Color.green);
+
+        // Determinar si está siguiendo una pared
+        bool currentlyFollowingWall = leftWallDetected || rightWallDetected;
+
+        // Determinar si está siguiendo la misma pared
+        bool samePath = false;
+        if (currentlyFollowingWall)
+        {
+            Vector3 currentWallPos = leftWallDetected ? leftHit.point : rightHit.point;
+            if (isFollowingWall)
+            {
+                // Si la dirección de movimiento es aproximadamente paralela a la pared
+                Vector3 movementDir = transform.forward;
+                Vector3 wallDir = Vector3.Cross(leftWallDetected ? leftHit.normal : rightHit.normal, Vector3.up).normalized;
+                float angleWithWall = Vector3.Angle(movementDir, wallDir);
+
+                // Considera que sigue la pared si se mueve aproximadamente paralelo a ella
+                samePath = (angleWithWall < 45f || angleWithWall > 135f);
+            }
+            lastWallPosition = currentWallPos;
+        }
+
+        // Actualizar tiempo de seguimiento de pared
+        if (currentlyFollowingWall && samePath)
+        {
+            if (!isFollowingWall)
+            {
+                // Iniciando nuevo seguimiento de pared
+                isFollowingWall = true;
+            }
+            wallFollowingTime += Time.deltaTime;
+        }
+        else
+        {
+            // Reiniciar si no está siguiendo pared o cambió de pared
+            isFollowingWall = currentlyFollowingWall;
+            wallFollowingTime = 0f;
+        }
+
+        // Aplicar penalización si supera el umbral
+        if (wallFollowingTime > wallFollowingThreshold)
+        {
+            // Penalización progresiva para desincentivar el comportamiento
+            float penalty = wallFollowingPenalty * (wallFollowingTime - wallFollowingThreshold);
+            fitness -= penalty * Time.deltaTime;
+
+            // Para depuración
+            if (Time.frameCount % 60 == 0) // Cada ~1 segundo
+            {
+                Debug.Log($"NPC {name} penalizado por seguir pared durante {wallFollowingTime:F1}s. Penalización: {penalty:F1}");
+            }
+        }
+    }
     void UpdateSensors()
     {
         if (inputs.Length < 8)
@@ -347,10 +469,53 @@ public class NPCController : MonoBehaviour
 
     void Jump()
     {
+        // Verificar si tenemos suficiente energía
+        if (energy < jumpEnergyCost)
+        {
+            return; // No saltar si no hay suficiente energía
+        }
+
+        // Determinar si este salto es necesario
+        bool jumpIsNecessary = DetermineIfJumpNecessary();
+        jumpNecessityHistory.Add(jumpIsNecessary);
+
+        // Actualizar contadores
+        if (jumpIsNecessary)
+        {
+            necessaryJumps++;
+        }
+        else
+        {
+            unnecessaryJumps++;
+        }
+
+        // Aplicar costo energético del salto
+        energy -= jumpEnergyCost;
+
+        // Realizar el salto físico
         rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
         lastJumpTime = Time.time;
         isGrounded = false;
         successfulJumps++;
+
+        // Actualizar animaciones si es necesario
+        if (animator != null)
+        {
+            animator.SetTrigger("Jump");
+        }
+    }
+
+    bool DetermineIfJumpNecessary()
+    {
+        // Salto necesario si hay un obstáculo bajo pero no uno alto
+        bool lowObstacleDetected = inputs[5] > 0.3f; // Obstáculo bajo/medio detectado
+        bool highObstacleDetected = inputs[6] > 0.4f; // Obstáculo alto detectado
+
+        // Un salto es necesario cuando:
+        // 1. Hay un obstáculo bajo o medio que se puede saltar
+        // 2. No hay un obstáculo alto que nos impediría saltar
+        // 3. Estamos en el suelo para poder saltar
+        return lowObstacleDetected && !highObstacleDetected && isGrounded;
     }
 
     void CheckGrounded()
@@ -384,6 +549,15 @@ public class NPCController : MonoBehaviour
             {
                 consecutiveCircles++;
                 fitness -= loopPenalty * consecutiveCircles; // Penalización progresiva
+
+                // NUEVA FUNCIONALIDAD: Terminar NPC después de 3 bucles consecutivos
+                if (consecutiveCircles >= 3)
+                {
+                    isDead = true;
+                    rb.velocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                    Debug.Log($"NPC {name} terminado por comportamiento de bucle persistente");
+                }
             }
             else
             {
@@ -432,6 +606,19 @@ public class NPCController : MonoBehaviour
 
         // Actualizar distancia desde el punto de inicio
         distanceFromStart = Vector3.Distance(transform.position, startPosition);
+
+        // Recompensa por explorar área central
+        float distanceToCenter = Vector3.Distance(
+            new Vector3(transform.position.x, 0, transform.position.z),
+            new Vector3(mapCenter.x, 0, mapCenter.z));
+
+        // Si el NPC está explorando la zona central
+        if (distanceToCenter < centralAreaRadius)
+        {
+            // La recompensa es mayor cuanto más cerca esté del centro
+            float centerBonus = centralAreaBonus * (1 - (distanceToCenter / centralAreaRadius));
+            fitness += centerBonus * Time.deltaTime * 0.1f; // Escalar para no hacer la bonificación demasiado grande
+        }
     }
 
     void UpdateFitness()
@@ -448,8 +635,10 @@ public class NPCController : MonoBehaviour
         // 3. Recompensa por distancia desde el punto de inicio
         baseReward += distanceFromStart * 0.3f;
 
-        // 4. Recompensa por saltos exitosos
-        baseReward += successfulJumps * 5f;
+        // 4. Sistema mejorado de recompensa por saltos
+        float jumpReward = necessaryJumps * 10f; // Mayor recompensa por saltos necesarios
+        float jumpPenalty = unnecessaryJumps * 3f; // Penalización por saltos innecesarios
+        baseReward += jumpReward - jumpPenalty;
 
         // 5. Penalización por tiempo (para evitar que el tiempo sea lo único que importa)
         float timePenalty = Mathf.Min(timeAlive * 0.1f, 10f); // Limitar la penalización
@@ -517,6 +706,16 @@ public class NPCController : MonoBehaviour
             idleTime = 0f;
             successfulJumps = 0;
             lastJumpTime = -1f;
+
+            // Reiniciar variables de salto
+            jumpNecessityHistory.Clear();
+            necessaryJumps = 0;
+            unnecessaryJumps = 0;
+            energy = 100f; // Restaurar energía
+
+            // Reiniciar variables de seguimiento de paredes
+            wallFollowingTime = 0f;
+            isFollowingWall = false;
 
             // Resetear variables anti-loop y exploración
             positionHistory.Clear();

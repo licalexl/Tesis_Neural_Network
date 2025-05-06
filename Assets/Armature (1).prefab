@@ -451,6 +451,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c7641d17ce655be47a19a9160872b162, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  necessaryJumps: 0
+  unnecessaryJumps: 0
+  energy: 100
+  jumpEnergyCost: 5
+  energyRecoveryRate: 1
   npcType: 0
   allyColor: {r: 0, g: 0, b: 1, a: 1}
   enemyColor: {r: 1, g: 0, b: 0, a: 1}
@@ -483,6 +488,12 @@ MonoBehaviour:
   lowerSensorHeight: 0.03
   maxIdleTime: 5
   isDead: 0
+  loopDetectionRadius: 0.99
+  checkpointInterval: 3
+  minCheckpointDistance: 5
+  loopPenalty: 10
+  explorationBonus: 2
+  gridSize: 5
   geneticAlgorithm: {fileID: 0}
 --- !u!54 &1897334759356864328
 Rigidbody:

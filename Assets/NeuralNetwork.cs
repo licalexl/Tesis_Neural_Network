@@ -42,7 +42,7 @@ public class NeuralNetwork
             neurons[i] = new float[layers[i]];
         }
     }
-      
+
     // Inicializa los pesos de las conexiones con valores aleatorios.  
     private void InitializeWeights()
     {
@@ -82,6 +82,13 @@ public class NeuralNetwork
             {
                 // Añadir sesgo a la conexión con la primera neurona de salida (neurona de avance)
                 weights[lastWeightLayerIndex][j][0] += 0.5f;
+
+                // Añadir sesgo negativo a la conexión con la neurona de salto (índice 3)
+                // Esto hará que los NPCs sean menos propensos a saltar por defecto
+                if (layers[layers.Length - 1] > 3) // Asegurar que hay al menos 4 neuronas de salida
+                {
+                    weights[lastWeightLayerIndex][j][3] -= 0.3f;
+                }
             }
         }
         catch (Exception e)
@@ -91,7 +98,7 @@ public class NeuralNetwork
         }
     }
 
-   
+
     public float[] FeedForward(float[] inputs)
     {
         // Colocamos los valores de entrada en la primera capa de neuronas
