@@ -51,7 +51,17 @@ public class NPCController : MonoBehaviour
     public Vector3 mapCenter = Vector3.zero;
 
 
-  
+    [Header("Sistema de Inmunidad")]
+    [Tooltip("Indica si el NPC es inmune a colisiones")]
+    public bool isImmune = false;
+
+    [Tooltip("Material a usar durante la inmunidad")]
+    public Material immunityMaterial;
+
+    private Material originalMaterial;
+    private float immunityTimeRemaining = 0f;
+    private Renderer npcRenderer;
+
 
 
     public enum NPCType
@@ -181,6 +191,12 @@ public class NPCController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         animator = GetComponent<Animator>();
+        npcRenderer = GetComponent<Renderer>();
+
+        if (npcRenderer != null)
+        {
+            originalMaterial = npcRenderer.material;
+        }
 
         if (rb == null)
         {
@@ -194,6 +210,27 @@ public class NPCController : MonoBehaviour
         lastCheckpointPosition = transform.position;
     }
 
+    public void ApplyTemporaryImmunity(float duration)
+    {
+        isImmune = true;
+        immunityTimeRemaining = duration;
+
+        // Cambiar apariencia para indicar inmunidad
+        if (npcRenderer != null && immunityMaterial != null)
+        {
+            npcRenderer.material = immunityMaterial;
+        }
+        else
+        {
+            // Si no hay material específico, usar un efecto de transparencia
+            if (npcRenderer != null)
+            {
+                Color tempColor = npcRenderer.material.color;
+                tempColor.a = 0.5f; // Semi-transparente
+                npcRenderer.material.color = tempColor;
+            }
+        }
+    }
     void Start()
     {
         if (geneticAlgorithm == null)
@@ -223,6 +260,30 @@ public class NPCController : MonoBehaviour
     void Update()
     {
         if (isDead) return;
+
+        // Actualizar inmunidad
+        if (isImmune)
+        {
+            immunityTimeRemaining -= Time.deltaTime;
+
+            if (immunityTimeRemaining <= 0)
+            {
+                // Terminar inmunidad
+                isImmune = false;
+
+                // Restaurar apariencia
+                if (npcRenderer != null)
+                {
+                    if (originalMaterial != null)
+                    {
+                        npcRenderer.material = originalMaterial;
+                    }
+
+                    // Asegurar color correcto
+                    SetNPCColor();
+                }
+            }
+        }
 
         UpdateSensors();
         outputs = brain.FeedForward(inputs);
@@ -450,10 +511,10 @@ public class NPCController : MonoBehaviour
         // Actualizamos las animaciones si hay un componente Animator
         if (animator != null)
         {
-            animator.SetFloat("Speed", forwardSpeed / moveSpeed);
-            animator.SetFloat("Turn", turnAmount / rotationSpeed);
-            animator.SetBool("IsGrounded", isGrounded);
-            animator.SetTrigger("Jump"); // Si existe un trigger de salto en el animator
+           // animator.SetFloat("Speed", forwardSpeed / moveSpeed);
+           // animator.SetFloat("Turn", turnAmount / rotationSpeed);
+          //  animator.SetBool("IsGrounded", isGrounded);
+          //  animator.SetTrigger("Jump"); // Si existe un trigger de salto en el animator
         }
 
         // Calculamos la distancia recorrida desde el último frame
@@ -501,7 +562,7 @@ public class NPCController : MonoBehaviour
         // Actualizar animaciones si es necesario
         if (animator != null)
         {
-            animator.SetTrigger("Jump");
+           // animator.SetTrigger("Jump");
         }
     }
 
@@ -621,6 +682,39 @@ public class NPCController : MonoBehaviour
         }
     }
 
+    public void UpdateVisualBasedOnLocks()
+    {
+        if (brain == null) return;
+
+        Renderer renderer = GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            // Color base según tipo
+            Color baseColor = (npcType == NPCType.Ally) ? allyColor : enemyColor;
+
+            // Verificar si tiene comportamientos bloqueados
+            bool[] lockStatus = brain.GetOutputLockStatus();
+            int lockedCount = 0;
+
+            foreach (bool locked in lockStatus)
+            {
+                if (locked) lockedCount++;
+            }
+
+            // indicador visual basado en cuántos comportamientos están bloqueados
+            if (lockedCount > 0)
+            {
+                // tinte dorado para indicar bloqueo y su intensidad
+                float lockIntensity = (float)lockedCount / lockStatus.Length * 0.5f;
+                baseColor = Color.Lerp(baseColor, Color.yellow, lockIntensity);
+
+                // mejora posible futura para mi codigo donde puedo añadir algún efecto de partículas o un objeto hijo como indicador visual
+            }
+
+            renderer.material.color = baseColor;
+        }
+    }
+
     void UpdateFitness()
     {
         // Nueva fórmula de fitness
@@ -681,8 +775,68 @@ public class NPCController : MonoBehaviour
         }
     }
 
+    public void ResetWithoutPosition()
+    {
+        if (rb != null)
+        {
+            // No cambiamos la posición ni rotación
+            Vector3 currentPosition = transform.position;
+            Quaternion currentRotation = transform.rotation;
+
+            // Guardamos la posición actual como nueva posición de inicio
+            lastPosition = currentPosition;
+
+            isDead = false;
+            fitness = 0;
+            totalDistance = 0;
+            timeAlive = 0;
+            idleTime = 0f;
+            successfulJumps = 0;
+            lastJumpTime = -1f;
+
+            // Resetear variables adicionales
+            jumpNecessityHistory.Clear();
+            necessaryJumps = 0;
+            unnecessaryJumps = 0;
+            energy = 100f;
+
+            // Resetear variables de seguimiento de paredes y loops
+            wallFollowingTime = 0f;
+            isFollowingWall = false;
+            consecutiveCircles = 0;
+            totalRotation = 0f;
+            lastAngle = transform.rotation.eulerAngles.y;
+
+            // Mantener historial de posiciones pero actualizar el último checkpoint
+            lastCheckpointPosition = currentPosition;
+            lastCheckpointTime = 0f;
+
+            // Conservamos el historial de celdas visitadas (para continuar la exploración)
+            uniqueAreasVisited = visitedCells.Count;
+
+            // Actualizar distancia desde punto de inicio original
+            distanceFromStart = Vector3.Distance(currentPosition, startPosition);
+
+            // Detener movimiento
+            rb.velocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+
+            // Resetear checkpoints (opcional, depende de tu diseño)
+            if (CheckpointSystem.Instance != null)
+            {
+                CheckpointSystem.Instance.ResetNPCCheckpoints(this);
+            }
+        }
+        else
+        {
+            Debug.LogError("No se encontró el Rigidbody");
+        }
+    }
     void OnCollisionEnter(Collision collision)
     {
+        // Si está inmune, ignorar colisiones con obstáculos
+        if (isImmune) return;
+
         if (collision.gameObject.CompareTag("Obstacle"))
         {
             isDead = true;

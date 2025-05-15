@@ -221,7 +221,7 @@ public class AITrainingLoader : MonoBehaviour
         LoadTraining(fileName);
     }
 
-   
+
     public void LoadTraining(string fileName)
     {
         // Determina la ruta según la configuración
@@ -355,6 +355,13 @@ public class AITrainingLoader : MonoBehaviour
                                 {
                                     npc.brain.SetWeights(rebuiltWeights);
                                     Debug.Log($"Pesos reconstruidos correctamente para la red #{i}");
+
+                                    // Aplicar estado de bloqueo si existe
+                                    if (savedNetwork.outputLockStatus != null)
+                                    {
+                                        npc.brain.SetOutputLockStatus(savedNetwork.outputLockStatus);
+                                        Debug.Log($"Estado de bloqueo aplicado correctamente para la red #{i}");
+                                    }
                                 }
                                 else
                                 {
@@ -403,11 +410,17 @@ public class AITrainingLoader : MonoBehaviour
                                         npc.brain.SetWeights(rebuiltWeights);
                                         // Aplicamos una mutación más alta para diversidad
                                         npc.brain.Mutate(geneticAlgorithm.mutationRate * 2);
+
+                                        // Aplicar estado de bloqueo si existe
+                                        if (sourceNetwork.outputLockStatus != null)
+                                        {
+                                            npc.brain.SetOutputLockStatus(sourceNetwork.outputLockStatus);
+                                        }
                                     }
-                                }
-                                else
-                                {
-                                    Debug.LogWarning($"Pesos nulos en red fuente #{sourceIndex}, no se aplicó mutación");
+                                    else
+                                    {
+                                        Debug.LogWarning($"Pesos nulos en red fuente #{sourceIndex}, no se aplicó mutación");
+                                    }
                                 }
                             }
                         }
@@ -416,7 +429,7 @@ public class AITrainingLoader : MonoBehaviour
                             Debug.LogError($"Error al copiar/mutar red para NPC #{i}: {e.Message}");
                             // Fallback: crear NPC con configuración por defecto
                             npc.brain = new NeuralNetwork(8, 8, 6, 4); // Estructura actualizada
-                            // Decidir tipo basado en el porcentaje configurado
+                                                                       // Decidir tipo basado en el porcentaje configurado
                             npc.npcType = (i < geneticAlgorithm.populationSize * geneticAlgorithm.enemyPercentage) ?
                                 NPCController.NPCType.Enemy : NPCController.NPCType.Ally;
                             npc.SetNPCColor();
@@ -449,6 +462,12 @@ public class AITrainingLoader : MonoBehaviour
             {
                 Debug.LogError("La población está vacía después de la carga. No se reanudará el algoritmo.");
             }
+
+            // Sincronizar la UI con el estado de bloqueo cargado
+            if (FindObjectOfType<AITrainingUI>() != null)
+            {
+                FindObjectOfType<AITrainingUI>().SyncUIWithLockStatus();
+            }
         }
         catch (Exception e)
         {
@@ -459,6 +478,10 @@ public class AITrainingLoader : MonoBehaviour
         {
             // Desactivamos la bandera de carga
             isLoading = false;
+        }
+        if (FindObjectOfType<AITrainingUI>() != null)
+        {
+            FindObjectOfType<AITrainingUI>().SyncUIWithLockStatus();
         }
     }
 }

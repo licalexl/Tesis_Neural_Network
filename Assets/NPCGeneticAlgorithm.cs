@@ -41,6 +41,20 @@ public class NPCGeneticAlgorithm : MonoBehaviour
     [Tooltip("Generación actual")]
     public int generation = 1;
 
+    [Header("Configuración de Reutilización")]
+    [Tooltip("Si es true, reutiliza NPCs en lugar de destruirlos/crearlos")]
+    public bool reuseNPCs = true;
+
+    [Tooltip("Duración de la inmunidad temporal al inicio de cada generación (segundos)")]
+    public float immunityDuration = 2f;
+
+    [Tooltip("Si es true, los NPCs continúan desde su posición actual; si es false, vuelven al spawn")]
+    public bool continueFromCurrentPosition = false;
+
+
+
+
+    private List<NPCController> unusedNPCs = new List<NPCController>();
     private float bestFitness = 0; // Mejor desempeño en la generación actual
     private float worstFitness = float.MaxValue; // Peor desempeño en la generación actual
     private float averageFitness = 0; // Desempeño promedio en la generación actual
@@ -183,74 +197,123 @@ public class NPCGeneticAlgorithm : MonoBehaviour
     /// </summary>
     void Selection()
     {
+
         if (population == null || population.Count == 0)
         {
             Debug.LogError("La población está vacía o nula.");
             return;
         }
 
-        List<NPCController> newPopulation = new List<NPCController>();
-
         // Separar la población por tipo
         var allies = population.Where(npc => npc.npcType == NPCController.NPCType.Ally).ToList();
         var enemies = population.Where(npc => npc.npcType == NPCController.NPCType.Enemy).ToList();
 
-        // Seleccionar los mejores de cada tipo
-        if (allies.Any())
-        {
-            NPCController bestAlly = allies.OrderByDescending(c => c.fitness).First();
-            newPopulation.Add(bestAlly);
-        }
+        // Ordenar NPCs por fitness
+        allies = allies.OrderByDescending(c => c.fitness).ToList();
+        enemies = enemies.OrderByDescending(c => c.fitness).ToList();
 
-        if (enemies.Any())
-        {
-            NPCController bestEnemy = enemies.OrderByDescending(c => c.fitness).First();
-            newPopulation.Add(bestEnemy);
-        }
-
-        // Mantener la proporción original
+        // Crear nueva población reutilizando los NPCs existentes
         int enemyCount = Mathf.RoundToInt(populationSize * enemyPercentage);
         int allyCount = populationSize - enemyCount;
 
-        // Crear la nueva población manteniendo los tipos
-        while (newPopulation.Count < populationSize)
+        List<NPCController> newPopulation = new List<NPCController>();
+        unusedNPCs.Clear();
+        unusedNPCs.AddRange(population);
+
+        // MÉTODO MODIFICADO PARA REUTILIZACIÓN
+        if (reuseNPCs)
         {
-            NPCController.NPCType targetType = (newPopulation.Count < enemyCount) ?
-                NPCController.NPCType.Enemy : NPCController.NPCType.Ally;
-
-            var parentPool = (targetType == NPCController.NPCType.Enemy) ? enemies : allies;
-
-            if (parentPool.Count >= 2)
+            // Primero, añadimos los mejores de cada tipo (elitismo)
+            if (enemies.Count > 0)
             {
-                NPCController parent1 = TournamentSelection(parentPool);
-                NPCController parent2 = TournamentSelection(parentPool);
-
-                GameObject childGO = Instantiate(npcPrefab, startPosition.position, startPosition.rotation);
-                NPCController child = childGO.GetComponent<NPCController>();
-
-                if (child != null)
-                {
-                    child.brain = parent1.brain.Copy();
-                    child.brain.Crossover(parent2.brain);
-                    child.npcType = targetType;
-                    child.SetNPCColor();
-                    newPopulation.Add(child);
-                }
+                NPCController bestEnemy = enemies[0];
+                newPopulation.Add(bestEnemy);
+                unusedNPCs.Remove(bestEnemy);
             }
-        }
 
-        // Limpiar la población anterior
-        foreach (var npc in population)
-        {
-            if (!newPopulation.Contains(npc))
+            if (allies.Count > 0)
             {
-                Destroy(npc.gameObject);
+                NPCController bestAlly = allies[0];
+                newPopulation.Add(bestAlly);
+                unusedNPCs.Remove(bestAlly);
+            }
+
+            // Completar la población reutilizando NPCs existentes
+            while (newPopulation.Count < populationSize)
+            {
+                NPCController.NPCType targetType = (newPopulation.Count < enemyCount) ?
+                    NPCController.NPCType.Enemy : NPCController.NPCType.Ally;
+
+                var parentPool = (targetType == NPCController.NPCType.Enemy) ? enemies : allies;
+
+                if (parentPool.Count >= 2)
+                {
+                    NPCController parent1 = TournamentSelection(parentPool);
+                    NPCController parent2 = TournamentSelection(parentPool);
+
+                    // Obtener un NPC para reutilizar
+                    NPCController childNPC = GetNPCToReuse(targetType);
+
+                    // Configurar el NPC reutilizado
+                    if (childNPC != null)
+                    {
+                        // Copiar cerebro del padre 1 y aplicar crossover con padre 2
+                        childNPC.brain = parent1.brain.Copy();
+                        childNPC.brain.Crossover(parent2.brain);
+
+                        // Asegurar tipo correcto
+                        childNPC.npcType = targetType;
+                        childNPC.SetNPCColor();
+
+                        // Aplicar inmunidad temporal
+                        childNPC.ApplyTemporaryImmunity(immunityDuration);
+
+                        // Decidir posición inicial
+                        if (!continueFromCurrentPosition)
+                        {
+                            childNPC.transform.position = startPosition.position;
+                            childNPC.transform.rotation = startPosition.rotation;
+                        }
+
+                        newPopulation.Add(childNPC);
+                    }
+                }
             }
         }
 
         population = newPopulation;
     }
 
+    private NPCController GetNPCToReuse(NPCController.NPCType targetType)
+    {
+        // Primero intentamos encontrar un NPC del mismo tipo que no esté en uso
+        var matchingTypeNPCs = unusedNPCs.Where(npc => npc.npcType == targetType).ToList();
+        if (matchingTypeNPCs.Count > 0)
+        {
+            NPCController npc = matchingTypeNPCs[0];
+            unusedNPCs.Remove(npc);
+            return npc;
+        }
+
+        // Si no hay del mismo tipo, usamos cualquier tipo
+        if (unusedNPCs.Count > 0)
+        {
+            NPCController npc = unusedNPCs[0];
+            unusedNPCs.Remove(npc);
+            return npc;
+        }
+
+        // Si no hay NPCs disponibles para reutilizar, creamos uno nuevo
+        GameObject npcGO = Instantiate(npcPrefab, startPosition.position, startPosition.rotation);
+        NPCController newNPC = npcGO.GetComponent<NPCController>();
+
+        if (newNPC == null)
+        {
+            Debug.LogError("Error al crear nuevo NPC: No se encontró el componente NPCController");
+        }
+
+        return newNPC;
+    }
     NPCController TournamentSelection(List<NPCController> pool)
     {
         if (pool == null || pool.Count == 0) return null;
@@ -323,24 +386,34 @@ public class NPCGeneticAlgorithm : MonoBehaviour
         }
     }
 
-  
+
     // Reinicia todos los NPCs para la siguiente generación.
-   
+
     void ResetPopulation()
     {
         foreach (var npc in population)
         {
             if (npc != null)
             {
-                // Reiniciamos cada NPC (posición, fitness, estado, etc.)
-                npc.Reset();
-            }
-            else
-            {
-                Debug.LogError("Error al resetear el NPC: referencia nula");
+                // Reiniciamos el NPC
+                if (!continueFromCurrentPosition)
+                {
+                    // Reiniciar a la posición inicial
+                    npc.Reset();
+                }
+                else
+                {
+                    // Solo reiniciamos el fitness y otros valores, mantenemos la posición
+                    npc.ResetWithoutPosition();
+                }
+
+                // Aplicamos inmunidad
+                npc.ApplyTemporaryImmunity(immunityDuration);
             }
         }
     }
+
+
 
     public void ForceNextGeneration()
     {

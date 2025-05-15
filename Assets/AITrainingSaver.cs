@@ -10,17 +10,18 @@ public class SerializedNetwork
 {
     // Estructura de capas de la red (número de neuronas por capa)
     public int[] layers;
-    
+
     // Versión serializable de los pesos (lista plana)
     public List<float> flattenedWeights;
-    
+
     // Valor de fitness de esta red neuronal
     public float fitness;
 
     public NPCController.NPCType npcType;
 
+    // Estado de bloqueo de las salidas 
+    public bool[] outputLockStatus;
 }
-
 
 
 [System.Serializable]
@@ -193,9 +194,10 @@ public class AITrainingSaver : MonoBehaviour
             SerializedNetwork serializedNetwork = new SerializedNetwork
             {
                 layers = npc.brain.GetLayers(),
-                flattenedWeights = flattenedWeights,
+                flattenedWeights = FlattenWeights(weights),
                 fitness = npc.fitness,
-                npcType = npc.npcType // Añadir el tipo de NPC
+                npcType = npc.npcType,
+                outputLockStatus = npc.brain.GetOutputLockStatus() 
             };
 
             data.networks.Add(serializedNetwork);

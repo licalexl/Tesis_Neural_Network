@@ -19,6 +19,10 @@ public class NeuralNetwork
     // Tercera dimensión: neurona destino en la siguiente capa
     private float[][][] weights;
 
+
+    // true = bloqueado (no se modifica en mutación/crossover)
+    private bool[] outputLockStatus;
+
     /// Constructor que crea una nueva red neuronal con la estructura especificada.    
     /// Número de neuronas en cada capa (entrada, ocultas, salida)</param>
     public NeuralNetwork(params int[] layers)
@@ -26,11 +30,42 @@ public class NeuralNetwork
         this.layers = layers;
         InitializeNeurons();
         InitializeWeights();
+
+        // Inicializar el estado de bloqueo (por defecto, nada bloqueado)
+        outputLockStatus = new bool[layers[layers.Length - 1]];
+        for (int i = 0; i < outputLockStatus.Length; i++)
+            outputLockStatus[i] = false;
     }
 
+    public void SetOutputLockStatus(int outputIndex, bool locked)
+    {
+        if (outputIndex >= 0 && outputIndex < outputLockStatus.Length)
+            outputLockStatus[outputIndex] = locked;
+    }
+
+    public bool IsOutputLocked(int outputIndex)
+    {
+        if (outputIndex >= 0 && outputIndex < outputLockStatus.Length)
+            return outputLockStatus[outputIndex];
+        return false;
+    }
+
+    public bool[] GetOutputLockStatus()
+    {
+        return (bool[])outputLockStatus.Clone();
+    }
+
+    public void SetOutputLockStatus(bool[] lockStatus)
+    {
+        if (lockStatus != null && lockStatus.Length == outputLockStatus.Length)
+        {
+            for (int i = 0; i < lockStatus.Length; i++)
+                outputLockStatus[i] = lockStatus[i];
+        }
+    }
     //
     // Inicializa las matrices para almacenar los valores de las neuronas.
- 
+
     private void InitializeNeurons()
     {
         // Creamos el array de arrays para las neuronas
@@ -131,9 +166,12 @@ public class NeuralNetwork
         return neurons[neurons.Length - 1];
     }
 
-  
+
     public void Mutate(float mutationRate)
     {
+        // Obtenemos el índice de la última capa de pesos
+        int lastWeightLayerIndex = weights.Length - 1;
+
         // Recorremos todos los pesos de la red
         for (int i = 0; i < weights.Length; i++)
         {
@@ -141,6 +179,10 @@ public class NeuralNetwork
             {
                 for (int k = 0; k < weights[i][j].Length; k++)
                 {
+                    // Si estamos en la última capa y esta salida está bloqueada, saltamos
+                    if (i == lastWeightLayerIndex && k < outputLockStatus.Length && outputLockStatus[k])
+                        continue;
+
                     // Con una probabilidad igual a mutationRate, modificamos el peso
                     if (UnityEngine.Random.value < mutationRate)
                     {
@@ -152,7 +194,7 @@ public class NeuralNetwork
         }
     }
 
-    
+
     public NeuralNetwork Copy()
     {
         // Creamos una nueva red con la misma estructura
@@ -173,9 +215,12 @@ public class NeuralNetwork
         return copy;
     }
 
-    
+
     public void Crossover(NeuralNetwork other)
     {
+        // Obtenemos el índice de la última capa de pesos
+        int lastWeightLayerIndex = weights.Length - 1;
+
         // Recorremos todos los pesos
         for (int i = 0; i < weights.Length; i++)
         {
@@ -183,6 +228,10 @@ public class NeuralNetwork
             {
                 for (int k = 0; k < weights[i][j].Length; k++)
                 {
+                    // Si estamos en la última capa y esta salida está bloqueada, saltamos
+                    if (i == lastWeightLayerIndex && k < outputLockStatus.Length && outputLockStatus[k])
+                        continue;
+
                     // Con 50% de probabilidad, tomamos el peso de la otra red
                     if (UnityEngine.Random.value < 0.5f)
                     {

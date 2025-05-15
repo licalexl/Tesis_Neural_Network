@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-
+using System.Collections.Generic;
 
 public class AITrainingUI : MonoBehaviour
 {
@@ -69,6 +69,36 @@ public class AITrainingUI : MonoBehaviour
     [Tooltip("Texto que muestra la energía promedio de los NPCs")]
     public TextMeshProUGUI energyText;
 
+
+    [Header("Control de Bloqueo de Comportamientos")]
+    [Tooltip("Panel contenedor de controles de bloqueo")]
+    public GameObject lockControlsPanel;
+
+    [Tooltip("Toggle para bloquear movimiento hacia adelante")]
+    public Toggle forwardMovementLockToggle;
+
+    [Tooltip("Toggle para bloquear giro izquierda")]
+    public Toggle leftTurnLockToggle;
+
+    [Tooltip("Toggle para bloquear giro derecha")]
+    public Toggle rightTurnLockToggle;
+
+    [Tooltip("Toggle para bloquear salto")]
+    public Toggle jumpLockToggle;
+
+    [Header("Configuración de Reutilización")]
+    [Tooltip("Toggle para activar/desactivar reutilización de NPCs")]
+    public Toggle reuseNPCsToggle;
+
+    [Tooltip("Toggle para continuar desde posición actual o volver al spawn")]
+    public Toggle continueFromCurrentPositionToggle;
+
+    [Tooltip("Slider para duración de inmunidad")]
+    public Slider immunityDurationSlider;
+
+    [Tooltip("Texto para mostrar valor de inmunidad")]
+    public TextMeshProUGUI immunityDurationText;
+
     // Variables de estado
     private bool isPaused = false;
     private float previousTimeScale = 1f;
@@ -105,16 +135,157 @@ public class AITrainingUI : MonoBehaviour
             timeScaleSlider.value = Time.timeScale; // Valor inicial igual a la velocidad actual
             timeScaleSlider.onValueChanged.AddListener(ChangeTimeScale);
         }
+
+        if (forwardMovementLockToggle != null)
+            forwardMovementLockToggle.onValueChanged.AddListener(isOn => SetBehaviorLock("Forward", isOn));
+
+        if (leftTurnLockToggle != null)
+            leftTurnLockToggle.onValueChanged.AddListener(isOn => SetBehaviorLock("LeftTurn", isOn));
+
+        if (rightTurnLockToggle != null)
+            rightTurnLockToggle.onValueChanged.AddListener(isOn => SetBehaviorLock("RightTurn", isOn));
+
+        if (jumpLockToggle != null)
+            jumpLockToggle.onValueChanged.AddListener(isOn => SetBehaviorLock("Jump", isOn));
+
+        if (reuseNPCsToggle != null && geneticAlgorithm != null)
+        {
+            reuseNPCsToggle.isOn = geneticAlgorithm.reuseNPCs;
+            reuseNPCsToggle.onValueChanged.AddListener(OnReuseNPCsToggleChanged);
+        }
+
+        if (continueFromCurrentPositionToggle != null && geneticAlgorithm != null)
+        {
+            continueFromCurrentPositionToggle.isOn = geneticAlgorithm.continueFromCurrentPosition;
+            continueFromCurrentPositionToggle.onValueChanged.AddListener(OnContinuePositionToggleChanged);
+        }
+
+        if (immunityDurationSlider != null && geneticAlgorithm != null)
+        {
+            immunityDurationSlider.value = geneticAlgorithm.immunityDuration;
+            immunityDurationSlider.onValueChanged.AddListener(OnImmunityDurationChanged);
+            UpdateImmunityDurationText();
+        }
+       
     }
 
-    /// <summary>
-    /// Se ejecuta cada frame. Actualiza la información mostrada en la UI.
-    /// </summary>
+    void OnReuseNPCsToggleChanged(bool value)
+    {
+        if (geneticAlgorithm != null)
+        {
+            geneticAlgorithm.reuseNPCs = value;
+        }
+    }
+
+    void OnContinuePositionToggleChanged(bool value)
+    {
+        if (geneticAlgorithm != null)
+        {
+            geneticAlgorithm.continueFromCurrentPosition = value;
+        }
+    }
+
+    void OnImmunityDurationChanged(float value)
+    {
+        if (geneticAlgorithm != null)
+        {
+            geneticAlgorithm.immunityDuration = value;
+            UpdateImmunityDurationText();
+        }
+    }
+
+    void UpdateImmunityDurationText()
+    {
+        if (immunityDurationText != null && geneticAlgorithm != null)
+        {
+            immunityDurationText.text = $"Inmunidad: {geneticAlgorithm.immunityDuration:F1}s";
+        }
+    }
+
+    public void SetBehaviorLock(string behaviorName, bool locked)
+    {
+        if (!behaviorToOutputIndex.ContainsKey(behaviorName) ||
+            geneticAlgorithm == null ||
+            geneticAlgorithm.population == null)
+            return;
+
+        int outputIndex = behaviorToOutputIndex[behaviorName];
+
+        // Aplicar a todos los NPCs
+        foreach (var npc in geneticAlgorithm.population)
+        {
+            if (npc != null && npc.brain != null)
+            {
+                npc.brain.SetOutputLockStatus(outputIndex, locked);
+            }
+        }
+
+        Debug.Log($"Comportamiento '{behaviorName}' {(locked ? "bloqueado" : "desbloqueado")} para entrenamiento");
+        UpdateLockStatusVisual();
+    }
     void Update()
     {
         UpdateUI();
     }
 
+    public void UpdateLockStatusVisual()
+    {
+        // Actualizar visualización de NPCs basado en bloqueos
+        if (geneticAlgorithm != null && geneticAlgorithm.population != null)
+        {
+            foreach (var npc in geneticAlgorithm.population)
+            {
+                if (npc != null)
+                {
+                    npc.UpdateVisualBasedOnLocks();
+                }
+            }
+        }
+    }
+
+    public void SyncUIWithLockStatus()
+    {
+        if (geneticAlgorithm == null ||
+            geneticAlgorithm.population == null ||
+            geneticAlgorithm.population.Count == 0)
+            return;
+
+        // Usamos el primer NPC como referencia
+        var firstNPC = geneticAlgorithm.population[0];
+        if (firstNPC == null || firstNPC.brain == null)
+            return;
+
+        bool[] lockStatus = firstNPC.brain.GetOutputLockStatus();
+
+        // Evitar eventos en cascada
+        if (forwardMovementLockToggle != null && lockStatus.Length > 0)
+        {
+            forwardMovementLockToggle.SetIsOnWithoutNotify(lockStatus[0]);
+        }
+
+        if (leftTurnLockToggle != null && lockStatus.Length > 1)
+        {
+            leftTurnLockToggle.SetIsOnWithoutNotify(lockStatus[1]);
+        }
+
+        if (rightTurnLockToggle != null && lockStatus.Length > 2)
+        {
+            rightTurnLockToggle.SetIsOnWithoutNotify(lockStatus[2]);
+        }
+
+        if (jumpLockToggle != null && lockStatus.Length > 3)
+        {
+            jumpLockToggle.SetIsOnWithoutNotify(lockStatus[3]);
+        }
+    }
+
+    private Dictionary<string, int> behaviorToOutputIndex = new Dictionary<string, int>()
+{
+    { "Forward", 0 },   // Movimiento hacia adelante
+    { "LeftTurn", 1 },  // Giro izquierda
+    { "RightTurn", 2 }, // Giro derecha
+    { "Jump", 3 }       // Salto
+};
     /// <summary>
     /// Actualiza todos los elementos de la interfaz con la información actual.
     /// </summary>
@@ -236,6 +407,8 @@ public class AITrainingUI : MonoBehaviour
 
         // Guardamos el entrenamiento
         trainingSaver.SaveTraining(saveName);
+
+       
     }
 
    
@@ -250,6 +423,8 @@ public class AITrainingUI : MonoBehaviour
 
         // Cargamos el entrenamiento seleccionado en el dropdown
         trainingLoader.LoadSelectedTraining();
+
+
     }
 
    
