@@ -340,11 +340,12 @@ public class AITrainingLoader : MonoBehaviour
                         npc.npcType = savedNetwork.npcType;
                         npc.SetNPCColor();
 
-                        // Inicializar la red neuronal con las dimensiones correctas
+                        // AQUÍ COMIENZA LA MODIFICACIÓN - Red de Navegación
                         try
                         {
-                            npc.brain = new NeuralNetwork(savedNetwork.layers);
-                            Debug.Log($"Red #{i} creada con éxito. Estructura: {string.Join(",", savedNetwork.layers)}");
+                            // Inicializar la red de navegación con las dimensiones correctas
+                            npc.navigationBrain = new NeuralNetwork(NetworkType.Navigation, savedNetwork.layers);
+                            Debug.Log($"Red de navegación #{i} creada con éxito. Estructura: {string.Join(",", savedNetwork.layers)}");
 
                             // Verificamos si tenemos los pesos en formato plano
                             if (savedNetwork.flattenedWeights != null && savedNetwork.flattenedWeights.Count > 0)
@@ -353,39 +354,89 @@ public class AITrainingLoader : MonoBehaviour
                                 float[][][] rebuiltWeights = RebuildWeights(savedNetwork.flattenedWeights, savedNetwork.layers);
                                 if (rebuiltWeights != null)
                                 {
-                                    npc.brain.SetWeights(rebuiltWeights);
-                                    Debug.Log($"Pesos reconstruidos correctamente para la red #{i}");
+                                    npc.navigationBrain.SetWeights(rebuiltWeights);
+                                    Debug.Log($"Pesos de navegación reconstruidos correctamente para la red #{i}");
 
                                     // Aplicar estado de bloqueo si existe
                                     if (savedNetwork.outputLockStatus != null)
                                     {
-                                        npc.brain.SetOutputLockStatus(savedNetwork.outputLockStatus);
-                                        Debug.Log($"Estado de bloqueo aplicado correctamente para la red #{i}");
+                                        npc.navigationBrain.SetOutputLockStatus(savedNetwork.outputLockStatus);
+                                        Debug.Log($"Estado de bloqueo de navegación aplicado correctamente para la red #{i}");
                                     }
                                 }
                                 else
                                 {
-                                    Debug.LogError($"Error al reconstruir pesos para la red #{i}");
+                                    Debug.LogError($"Error al reconstruir pesos de navegación para la red #{i}");
                                 }
                             }
                             else
                             {
-                                Debug.LogWarning($"No se encontraron pesos planos para la red #{i}. Usando pesos aleatorios.");
+                                Debug.LogWarning($"No se encontraron pesos planos de navegación para la red #{i}. Usando pesos aleatorios.");
+                            }
+
+                            // Inicializar la red de combate
+                            if (savedNetwork.combatLayers != null)
+                            {
+                                npc.combatBrain = new NeuralNetwork(NetworkType.Combat, savedNetwork.combatLayers);
+                                Debug.Log($"Red de combate #{i} creada con éxito. Estructura: {string.Join(",", savedNetwork.combatLayers)}");
+
+                                // Verificamos si tenemos los pesos de combate en formato plano
+                                if (savedNetwork.combatFlattenedWeights != null && savedNetwork.combatFlattenedWeights.Count > 0)
+                                {
+                                    // Reconstruimos la estructura 3D
+                                    float[][][] combatRebuiltWeights = RebuildWeights(savedNetwork.combatFlattenedWeights, savedNetwork.combatLayers);
+                                    if (combatRebuiltWeights != null)
+                                    {
+                                        npc.combatBrain.SetWeights(combatRebuiltWeights);
+                                        Debug.Log($"Pesos de combate reconstruidos correctamente para la red #{i}");
+
+                                        // Aplicar estado de bloqueo si existe
+                                        if (savedNetwork.combatOutputLockStatus != null)
+                                        {
+                                            npc.combatBrain.SetOutputLockStatus(savedNetwork.combatOutputLockStatus);
+                                            Debug.Log($"Estado de bloqueo de combate aplicado correctamente para la red #{i}");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Debug.LogError($"Error al reconstruir pesos de combate para la red #{i}");
+                                    }
+                                }
+                                else
+                                {
+                                    Debug.LogWarning($"No se encontraron pesos planos de combate para la red #{i}. Usando pesos aleatorios.");
+                                }
+                            }
+                            else
+                            {
+                                // Si no hay datos de red de combate, crear una nueva con estructura predeterminada
+                                npc.combatBrain = new NeuralNetwork(NetworkType.Combat, 8, 10, 6, 4);
+                                Debug.Log($"Creada red de combate por defecto para NPC #{i} (datos de combate no encontrados)");
+                            }
+
+                            // Asegurar que la máquina de estados esté presente
+                            NPCStateMachine stateMachine = npc.GetComponent<NPCStateMachine>();
+                            if (stateMachine == null)
+                            {
+                                stateMachine = npc.gameObject.AddComponent<NPCStateMachine>();
+                                Debug.Log($"Añadida máquina de estados para NPC #{i}");
                             }
                         }
                         catch (Exception e)
                         {
-                            Debug.LogError($"Error al crear/configurar red #{i}: {e.Message}");
+                            Debug.LogError($"Error al crear/configurar redes para NPC #{i}: {e.Message}");
                             Debug.LogException(e);
 
-                            // Crear una red por defecto en caso de error
-                            npc.brain = new NeuralNetwork(8, 8, 6, 4); // Estructura actualizada
+                            // Crear redes por defecto en caso de error
+                            npc.navigationBrain = new NeuralNetwork(NetworkType.Navigation, 8, 8, 6, 4);
+                            npc.combatBrain = new NeuralNetwork(NetworkType.Combat, 8, 10, 6, 4);
                         }
+                        // FIN DE LA MODIFICACIÓN
                     }
                     else
                     {
-                        // Si necesitamos más NPCs que los guardados, hacemos copias
-                        // y las mutamos ligeramente para añadir diversidad
+                        // Si se necesitan todavia mas NPCs que los guardados, hacemos copias y las mutamos ligeramente para añadir aletoridad o un comportamiento nuevo
+                       
                         try
                         {
                             int sourceIndex = i % data.networks.Count;
@@ -394,42 +445,79 @@ public class AITrainingLoader : MonoBehaviour
                             if (sourceNetwork == null || sourceNetwork.layers == null)
                             {
                                 Debug.LogError($"Red fuente #{sourceIndex} es inválida");
-                                npc.brain = new NeuralNetwork(8, 8, 6, 4); // Estructura actualizada
+                                npc.navigationBrain = new NeuralNetwork(NetworkType.Navigation, 8, 8, 6, 4);
+                                npc.combatBrain = new NeuralNetwork(NetworkType.Combat, 8, 10, 6, 4);
                             }
                             else
                             {
                                 npc.npcType = sourceNetwork.npcType;
                                 npc.SetNPCColor();
-                                npc.brain = new NeuralNetwork(sourceNetwork.layers);
+
+                                // MODIFICACIÓN PARA NPC COPIADOS
+                                // Red de navegación
+                                npc.navigationBrain = new NeuralNetwork(NetworkType.Navigation, sourceNetwork.layers);
 
                                 if (sourceNetwork.flattenedWeights != null && sourceNetwork.flattenedWeights.Count > 0)
                                 {
                                     float[][][] rebuiltWeights = RebuildWeights(sourceNetwork.flattenedWeights, sourceNetwork.layers);
                                     if (rebuiltWeights != null)
                                     {
-                                        npc.brain.SetWeights(rebuiltWeights);
+                                        npc.navigationBrain.SetWeights(rebuiltWeights);
                                         // Aplicamos una mutación más alta para diversidad
-                                        npc.brain.Mutate(geneticAlgorithm.mutationRate * 2);
+                                        npc.navigationBrain.Mutate(geneticAlgorithm.mutationRate * 2);
 
                                         // Aplicar estado de bloqueo si existe
                                         if (sourceNetwork.outputLockStatus != null)
                                         {
-                                            npc.brain.SetOutputLockStatus(sourceNetwork.outputLockStatus);
+                                            npc.navigationBrain.SetOutputLockStatus(sourceNetwork.outputLockStatus);
                                         }
                                     }
-                                    else
+                                }
+
+                                // Red de combate
+                                if (sourceNetwork.combatLayers != null)
+                                {
+                                    npc.combatBrain = new NeuralNetwork(NetworkType.Combat, sourceNetwork.combatLayers);
+
+                                    if (sourceNetwork.combatFlattenedWeights != null && sourceNetwork.combatFlattenedWeights.Count > 0)
                                     {
-                                        Debug.LogWarning($"Pesos nulos en red fuente #{sourceIndex}, no se aplicó mutación");
+                                        float[][][] combatRebuiltWeights = RebuildWeights(sourceNetwork.combatFlattenedWeights, sourceNetwork.combatLayers);
+                                        if (combatRebuiltWeights != null)
+                                        {
+                                            npc.combatBrain.SetWeights(combatRebuiltWeights);
+                                            // Aplicamos una mutación más alta para diversidad
+                                            npc.combatBrain.Mutate(geneticAlgorithm.mutationRate * 2);
+
+                                            // Aplicar estado de bloqueo si existe
+                                            if (sourceNetwork.combatOutputLockStatus != null)
+                                            {
+                                                npc.combatBrain.SetOutputLockStatus(sourceNetwork.combatOutputLockStatus);
+                                            }
+                                        }
                                     }
                                 }
+                                else
+                                {
+                                    // Si no hay datos de red de combate, crear una nueva
+                                    npc.combatBrain = new NeuralNetwork(NetworkType.Combat, 8, 10, 6, 4);
+                                }
+
+                                // Asegurar que la máquina de estados esté presente
+                                NPCStateMachine stateMachine = npc.GetComponent<NPCStateMachine>();
+                                if (stateMachine == null)
+                                {
+                                    npc.gameObject.AddComponent<NPCStateMachine>();
+                                }
+                                // FIN DE MODIFICACIÓN PARA NPC COPIAS
                             }
                         }
                         catch (Exception e)
                         {
-                            Debug.LogError($"Error al copiar/mutar red para NPC #{i}: {e.Message}");
+                            Debug.LogError($"Error al copiar/mutar redes para NPC #{i}: {e.Message}");
                             // Fallback: crear NPC con configuración por defecto
-                            npc.brain = new NeuralNetwork(8, 8, 6, 4); // Estructura actualizada
-                                                                       // Decidir tipo basado en el porcentaje configurado
+                            npc.navigationBrain = new NeuralNetwork(NetworkType.Navigation, 8, 8, 6, 4);
+                            npc.combatBrain = new NeuralNetwork(NetworkType.Combat, 8, 10, 6, 4);
+                            // Decidir tipo basado en el porcentaje configurado
                             npc.npcType = (i < geneticAlgorithm.populationSize * geneticAlgorithm.enemyPercentage) ?
                                 NPCController.NPCType.Enemy : NPCController.NPCType.Ally;
                             npc.SetNPCColor();

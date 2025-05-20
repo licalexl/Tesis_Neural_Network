@@ -1532,6 +1532,8 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 594324858}
+  - {fileID: 1101149025}
+  - {fileID: 496816080}
   - {fileID: 1847914965}
   - {fileID: 638584695}
   - {fileID: 805730934}
@@ -6053,14 +6055,14 @@ RectTransform:
   m_GameObject: {fileID: 496816079}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 4.2438517, y: 1.6104851, z: 1.3085352}
+  m_LocalScale: {x: 1.1660951, y: 1.1660951, z: 1.166095}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1076001149}
+  m_Father: {fileID: 139260993}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -427.11215, y: -407.70193}
+  m_AnchoredPosition: {x: 442, y: 510}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &496816081
@@ -6146,7 +6148,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: -387.89862, w: -33.666676}
+  m_margin: {x: 0, y: 0, z: -109.78827, w: -33.666676}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -7240,8 +7242,8 @@ MonoBehaviour:
   saveButton: {fileID: 722671474}
   loadButton: {fileID: 467216495}
   saveNameInput: {fileID: 1201367892}
-  timeScaleSlider: {fileID: 0}
-  pauseResumeButton: {fileID: 1847914966}
+  timeScaleSlider: {fileID: 805730935}
+  pauseResumeButton: {fileID: 0}
   pauseResumeText: {fileID: 496816081}
   restartButton: {fileID: 452593456}
   necessaryJumpsText: {fileID: 1929834712}
@@ -7613,7 +7615,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -727, y: 486}
+  m_AnchoredPosition: {x: -801, y: 486}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &638584696
@@ -7699,7 +7701,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: -5.601776, w: -4.7278748}
+  m_margin: {x: 0, y: 0, z: -123.72378, w: -4.7278748}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -8833,7 +8835,6 @@ RectTransform:
   m_LocalScale: {x: 0, y: 0, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1011017860}
   - {fileID: 1582736624}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -9789,7 +9790,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -759, y: 441}
+  m_AnchoredPosition: {x: -772, y: 418}
   m_SizeDelta: {x: 160, y: 20}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &805730935
@@ -12044,50 +12045,6 @@ MonoBehaviour:
   m_LightCookieSize: {x: 1, y: 1}
   m_LightCookieOffset: {x: 0, y: 0}
   m_SoftShadowQuality: 0
---- !u!1 &1011017858
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1011017860}
-  - component: {fileID: 1011017859}
-  m_Layer: 0
-  m_Name: UIanimationm
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1011017859
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1011017858}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3bd3eedb103392947bd7bcf8e3282b70, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!4 &1011017860
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1011017858}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -969.9083, y: -540.7699, z: 13.08}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 709527259}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1018789002
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12889,7 +12846,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   populationSize: 80
-  enemyPercentage: 0.523
+  enemyPercentage: 0.5
   mutationRate: 0.321
   npcPrefab: {fileID: 2161168606819759126, guid: 820aa9c63f2b62849961e1f719fceca6, type: 3}
   startPosition: {fileID: 320238407}
@@ -13265,13 +13222,12 @@ RectTransform:
   - {fileID: 1751517350}
   - {fileID: 907341246}
   - {fileID: 1606260552}
-  - {fileID: 496816080}
   - {fileID: 707611809}
   m_Father: {fileID: 1582736624}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -684, y: -71}
+  m_AnchoredPosition: {x: -653, y: -71}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1076001150
@@ -13537,17 +13493,17 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1101149024}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.8220818, y: 0.36047867, z: 0.43042743}
+  m_LocalScale: {x: 1.6463735, y: 1.5754994, z: 0.3617862}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1847914965}
+  m_Father: {fileID: 139260993}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.80000305, y: 21.2}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 823.2771, y: 506.65625}
+  m_SizeDelta: {x: -1760, y: -1050}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1101149026
 MonoBehaviour:
@@ -18383,8 +18339,6 @@ GameObject:
   - component: {fileID: 1582736624}
   - component: {fileID: 1582736627}
   - component: {fileID: 1582736626}
-  - component: {fileID: 1582736625}
-  - component: {fileID: 1582736628}
   m_Layer: 5
   m_Name: MainPanel
   m_TagString: Untagged
@@ -18415,52 +18369,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1582736625
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1582736623}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a84fa15f16572e418a105d14af131ed, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  geneticAlgorithm: {fileID: 1046873383}
-  trainingSaver: {fileID: 622609667}
-  trainingLoader: {fileID: 622609666}
-  mainPanel: {fileID: 1582736623}
-  statisticsPanel: {fileID: 1076001148}
-  controlsPanel: {fileID: 915803180}
-  settingsPanel: {fileID: 915803180}
-  animationIDPrefix: AI_
-  generationText: {fileID: 605725803}
-  bestFitnessText: {fileID: 896720513}
-  avgFitnessText: {fileID: 327106771}
-  worstFitnessText: {fileID: 1751517351}
-  populationCountText: {fileID: 907341247}
-  timeScaleText: {fileID: 638584696}
-  necessaryJumpsText: {fileID: 1929834712}
-  unnecessaryJumpsText: {fileID: 218411937}
-  jumpEfficiencyText: {fileID: 823698154}
-  energyText: {fileID: 2062840024}
-  saveButton: {fileID: 722671474}
-  loadButton: {fileID: 467216495}
-  saveNameInput: {fileID: 1201367892}
-  timeScaleSlider: {fileID: 805730935}
-  pauseResumeButton: {fileID: 1847914966}
-  pauseResumeText: {fileID: 1101149026}
-  restartButton: {fileID: 452593456}
-  lockControlsPanel: {fileID: 935733043}
-  forwardMovementLockToggle: {fileID: 1777771700}
-  leftTurnLockToggle: {fileID: 11728165}
-  rightTurnLockToggle: {fileID: 1488528890}
-  jumpLockToggle: {fileID: 1548420176}
-  reuseNPCsToggle: {fileID: 83699979}
-  continueFromCurrentPositionToggle: {fileID: 1848763216}
-  immunityDurationSlider: {fileID: 340322252}
-  immunityDurationText: {fileID: 2033883821}
 --- !u!114 &1582736626
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18499,56 +18407,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1582736623}
   m_CullTransparentMesh: 1
---- !u!114 &1582736628
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1582736623}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 086f3b4f8c1fd5e4aad3dc574f2ffa4d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  animationID: 
-  duration: 0.5
-  delay: 0
-  animationCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
-  playOnAwake: 1
-  loop: 0
-  onAnimationStart:
-    m_PersistentCalls:
-      m_Calls: []
-  onAnimationComplete:
-    m_PersistentCalls:
-      m_Calls: []
-  fromAlpha: 0
-  toAlpha: 1
-  affectChildren: 1
 --- !u!1 &1606260551
 GameObject:
   m_ObjectHideFlags: 0
@@ -20889,6 +20747,7 @@ GameObject:
   - component: {fileID: 1847914968}
   - component: {fileID: 1847914967}
   - component: {fileID: 1847914966}
+  - component: {fileID: 1847914969}
   m_Layer: 5
   m_Name: PauseButton
   m_TagString: Untagged
@@ -20905,15 +20764,14 @@ RectTransform:
   m_GameObject: {fileID: 1847914964}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.1154969, y: 5.3956842, z: 1.0376716}
+  m_LocalScale: {x: 0.90356725, y: 4.370576, z: 0.8405277}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1101149025}
+  m_Children: []
   m_Father: {fileID: 139260993}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 843.87, y: 371.42}
+  m_AnchoredPosition: {x: 824, y: 414}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1847914966
@@ -21010,6 +20868,27 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1847914964}
   m_CullTransparentMesh: 1
+--- !u!114 &1847914969
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1847914964}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 035cfdc4b3d22734190fb33d5ecb11c0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  toggleButton: {fileID: 1847914966}
+  panel: {fileID: 1076001148}
+  buttonText: {fileID: 496816081}
+  animationDuration: 0.1
+  useSlideAnimation: 1
+  useScaleAnimation: 1
+  slideOffset: {x: 300, y: 0, z: 0}
+  openText: Pausar
+  closeText: Reanudar
 --- !u!1 &1848763214
 GameObject:
   m_ObjectHideFlags: 0

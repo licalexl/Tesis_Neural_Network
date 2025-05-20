@@ -6,6 +6,7 @@ using System;
 
 public class NetworkAnalyzer : MonoBehaviour
 {
+
     [Header("Referencias UI")]
     [Tooltip("Panel contenedor para la visualización de la red neuronal")]
     public RectTransform networkContainer;

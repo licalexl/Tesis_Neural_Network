@@ -21,6 +21,22 @@ public class SerializedNetwork
 
     // Estado de bloqueo de las salidas 
     public bool[] outputLockStatus;
+
+
+
+    // Campos  para identificar el tipo de red
+    public NetworkType networkType = NetworkType.Navigation;
+
+    // Campos para la red de combate
+    public int[] combatLayers;
+    public List<float> combatFlattenedWeights;
+    public bool[] combatOutputLockStatus;
+
+    // estadisticas de combate
+    public int attacksPerformed;
+    public int successfulBlocks;
+    public int successfulDodges;
+    public int successfulCounters;
 }
 
 
@@ -150,6 +166,7 @@ public class AITrainingSaver : MonoBehaviour
     // Guarda el estado actual del entrenamiento en un archivo JSON.        
     public void SaveTraining(string saveName = "")
     {
+
         // Verificamos que haya población para guardar
         if (geneticAlgorithm.population == null || geneticAlgorithm.population.Count == 0)
         {
@@ -181,29 +198,57 @@ public class AITrainingSaver : MonoBehaviour
         foreach (var npc in bestNPCs)
         {
             // Verificamos que el cerebro exista
+            if (npc.navigationBrain == null || npc.combatBrain == null)
+            {
+                Debug.LogError("Un NPC no tiene cerebro completo (navigationBrain o combatBrain es null)");
+                continue;
+            }
+            // Verificamos que el cerebro exista
             if (npc.brain == null)
             {
-                Debug.LogError("Un NPC no tiene cerebro (brain es null)");
+                Debug.LogError("Un NPC no tiene cerebro ");
                 continue;
             }
 
-            // Obtenemos los pesos y los convertimos a formato plano para mejor serialización
-            float[][][] weights = npc.brain.GetWeights();
-            List<float> flattenedWeights = FlattenWeights(weights);
+
+            // Se buscan los pesos y los convertimos a formato plano osea texto para mejor lectura en el archivo de guardado 
+         
+            // pesos de la red de navegación
+            float[][][] navWeights = npc.navigationBrain.GetWeights();
+            List<float> navFlattenedWeights = FlattenWeights(navWeights);
+
+            // pesos de la red de combate
+            float[][][] combatWeights = npc.combatBrain.GetWeights();
+            List<float> combatFlattenedWeights = FlattenWeights(combatWeights);
 
             SerializedNetwork serializedNetwork = new SerializedNetwork
             {
-                layers = npc.brain.GetLayers(),
-                flattenedWeights = FlattenWeights(weights),
+                // Datos de la red de navegación
+                layers = npc.navigationBrain.GetLayers(),
+                flattenedWeights = navFlattenedWeights,
+                outputLockStatus = npc.navigationBrain.GetOutputLockStatus(),
+                networkType = NetworkType.Navigation,
+
+                // Datos de la red de combate
+                combatLayers = npc.combatBrain.GetLayers(),
+                combatFlattenedWeights = combatFlattenedWeights,
+                combatOutputLockStatus = npc.combatBrain.GetOutputLockStatus(),
+
+                // Datos comunes
                 fitness = npc.fitness,
                 npcType = npc.npcType,
-                outputLockStatus = npc.brain.GetOutputLockStatus() 
+
+                // Estadísticas de combate (si las has implementado)
+                attacksPerformed = 0, // Reemplazar con estadísticas reales
+                successfulBlocks = 0,
+                successfulDodges = 0,
+                successfulCounters = 0
             };
 
             data.networks.Add(serializedNetwork);
 
             Debug.Log($"Red guardada: Capas={string.Join(",", serializedNetwork.layers)}, " +
-                $"Pesos planos={flattenedWeights.Count}, Fitness={npc.fitness}, " +
+                $"Pesos planos={navFlattenedWeights.Count}, Fitness={npc.fitness}, " +
                 $"Tipo={npc.npcType}");
         }
 
@@ -220,17 +265,17 @@ public class AITrainingSaver : MonoBehaviour
         }
         else
         {
-            // Usa la ruta persistente normal
+            // ruta por defecto
             fullPath = Path.Combine(Application.persistentDataPath, saveFolder);
         }
 
-        // Asegúrate de que la carpeta exista
+        // asegurar que la carpeta exista
         if (!Directory.Exists(fullPath))
         {
             Directory.CreateDirectory(fullPath);
         }
 
-        // Creamos la ruta completa del archivo
+        // ruta  del archivo
         string fileName = $"{saveName}.json";
         string filePath = Path.Combine(fullPath, fileName);
 

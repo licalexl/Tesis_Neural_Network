@@ -1,9 +1,11 @@
 using UnityEngine;
 using System;
 
-// Implementa una red neuronal multicapa (perceptrón multicapa).
-// Esta red neuronal toma decisiones para los NPCs basándose en sus sensores.
-
+public enum NetworkType
+{
+    Navigation,
+    Combat
+}
 public class NeuralNetwork
 {
     // La estructura de la red: cantidad de neuronas por capa
@@ -25,6 +27,9 @@ public class NeuralNetwork
 
     /// Constructor que crea una nueva red neuronal con la estructura especificada.    
     /// Número de neuronas en cada capa (entrada, ocultas, salida)</param>
+    /// 
+    public NetworkType networkType = NetworkType.Navigation;
+
     public NeuralNetwork(params int[] layers)
     {
         this.layers = layers;
@@ -321,4 +326,24 @@ public class NeuralNetwork
             Debug.LogException(e);
         }
     }
+
+
+
+
+    //Combateeeeeeeeeeeeeeeeeeeeeeeee
+
+    public NeuralNetwork(NetworkType type, params int[] layers)
+    {
+        this.networkType = type;
+        this.layers = layers;
+        InitializeNeurons();
+        InitializeWeights();
+
+        // Inicializar el estado de bloqueo
+        outputLockStatus = new bool[layers[layers.Length - 1]];
+        for (int i = 0; i < outputLockStatus.Length; i++)
+            outputLockStatus[i] = false;
+    }
+
+
 }

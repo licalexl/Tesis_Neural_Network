@@ -86,6 +86,16 @@ public class NPCController : MonoBehaviour
     public float[] outputs = new float[4]; // Avanzar, girar izquierda, girar derecha, saltar
 
     [Header("IA y Fitness")]
+
+    [Tooltip("Red neuronal para navegación")]
+    public NeuralNetwork navigationBrain;
+
+    [Tooltip("Red neuronal para combate")]
+    public NeuralNetwork combatBrain;
+
+    [Tooltip("Máquina de estados que controla el comportamiento")]
+    private NPCStateMachine stateMachine;
+
     [Tooltip("Red neuronal que toma decisiones para este NPC")]
     public NeuralNetwork brain;
 
@@ -100,6 +110,15 @@ public class NPCController : MonoBehaviour
 
     [Tooltip("Saltos exitosos realizados")]
     public int successfulJumps = 0;
+
+    // Entradas adicionales para la red de combate
+    [Tooltip("Valores de los sensores de combate, entrada para la red de combate")]
+    public float[] combatInputs = new float[8]; // 7 sensores específicos de combate + 1 constante
+
+    // Salidas de la red de combate
+    [Tooltip("Valores de salida de la red de combate: atacar, bloquear, esquivar, contraatacar")]
+    public float[] combatOutputs = new float[4];
+
 
     [Header("Configuración de Movimiento")]
     [Tooltip("Velocidad máxima de movimiento")]
@@ -160,6 +179,7 @@ public class NPCController : MonoBehaviour
 
     [Tooltip("Tamaño de la cuadrícula para dividir el mapa")]
     public float gridSize = 5f;
+
 
     // Variables privadas para el funcionamiento interno
     private float idleTime = 0f;
@@ -233,6 +253,25 @@ public class NPCController : MonoBehaviour
     }
     void Start()
     {
+        // Inicialización existente
+        if (navigationBrain == null)
+        {
+            navigationBrain = new NeuralNetwork(NetworkType.Navigation, 8, 8, 6, 4);
+        }
+
+        // Inicializar la red de combate
+        if (combatBrain == null)
+        {
+            combatBrain = new NeuralNetwork(NetworkType.Combat, 8, 10, 6, 4);
+        }
+
+        // Obtener la máquina de estados
+        stateMachine = GetComponent<NPCStateMachine>();
+        if (stateMachine == null)
+        {
+            stateMachine = gameObject.AddComponent<NPCStateMachine>();
+        }
+
         if (geneticAlgorithm == null)
         {
             geneticAlgorithm = FindObjectOfType<NPCGeneticAlgorithm>();
@@ -287,6 +326,18 @@ public class NPCController : MonoBehaviour
 
         UpdateSensors();
         outputs = brain.FeedForward(inputs);
+
+        if (stateMachine.GetCurrentState() == NPCStateMachine.NPCState.Navigation)
+        {
+            UpdateSensors();
+            outputs = navigationBrain.FeedForward(inputs);
+        }
+        else // Estado de combate
+        {
+            UpdateCombatSensors();
+            combatOutputs = combatBrain.FeedForward(combatInputs);
+        }
+
         timeAlive += Time.deltaTime;
     }
 
@@ -389,6 +440,117 @@ public class NPCController : MonoBehaviour
             }
         }
     }
+
+    void UpdateCombatSensors()
+    {
+        if (combatInputs.Length < 8)
+        {
+            combatInputs = new float[8];
+        }
+
+        // Posición de los sensores (similar a los sensores de navegación)
+        Vector3 sensorStartPos = transform.position + transform.forward * sensorForwardOffset + Vector3.up * sensorHeight;
+
+        // 1. Sensor de distancia al enemigo
+        if (stateMachine.currentTarget != null)
+        {
+            float distanceToEnemy = Vector3.Distance(transform.position, stateMachine.currentTarget.position);
+            combatInputs[0] = 1.0f - Mathf.Clamp01(distanceToEnemy / stateMachine.combatDetectionRadius);
+        }
+        else
+        {
+            combatInputs[0] = 0f;
+        }
+
+        // 2-4. Sensores de dirección al enemigo (adelante, izquierda, derecha)
+        if (stateMachine.currentTarget != null)
+        {
+            Vector3 directionToEnemy = (stateMachine.currentTarget.position - transform.position).normalized;
+
+            // Sensor frontal
+            float forwardDot = Vector3.Dot(transform.forward, directionToEnemy);
+            combatInputs[1] = Mathf.Max(0, forwardDot);
+
+            // Sensor izquierdo
+            Vector3 leftDir = Quaternion.Euler(0, -90, 0) * transform.forward;
+            float leftDot = Vector3.Dot(leftDir, directionToEnemy);
+            combatInputs[2] = Mathf.Max(0, leftDot);
+
+            // Sensor derecho
+            Vector3 rightDir = Quaternion.Euler(0, 90, 0) * transform.forward;
+            float rightDot = Vector3.Dot(rightDir, directionToEnemy);
+            combatInputs[3] = Mathf.Max(0, rightDot);
+        }
+        else
+        {
+            combatInputs[1] = 0f;
+            combatInputs[2] = 0f;
+            combatInputs[3] = 0f;
+        }
+
+        // 5. Sensor de "enemigo atacando" 
+        if (stateMachine.currentTarget != null)
+        {
+            RaycastHit hit;
+            Vector3 enemyDirection = (stateMachine.currentTarget.position - transform.position).normalized;
+            if (Physics.Raycast(stateMachine.currentTarget.position, enemyDirection, out hit, 2f))
+            {
+                if (hit.transform == transform)
+                {
+                    combatInputs[4] = 1.0f; // El enemigo está orientado hacia nosotros y cerca
+                }
+                else
+                {
+                    combatInputs[4] = 0.5f; // El enemigo está orientado hacia nosotros pero hay obstáculos
+                }
+            }
+            else
+            {
+                combatInputs[4] = 0f; // El enemigo no está orientado hacia nosotros
+            }
+        }
+        else
+        {
+            combatInputs[4] = 0f;
+        }
+
+        // 6. Sensor de salud/energía
+        combatInputs[5] = energy / 100f;
+
+        // 7. Sensor de "aliados cercanos"
+        Collider[] nearbyAllies = Physics.OverlapSphere(transform.position, stateMachine.combatDetectionRadius);
+        int allyCount = 0;
+
+        foreach (var nearbyCollider in nearbyAllies)
+        {
+            NPCController otherNPC = nearbyCollider.GetComponent<NPCController>();
+            if (otherNPC != null && otherNPC != this && otherNPC.npcType == npcType)
+            {
+                allyCount++;
+            }
+        }
+
+        combatInputs[6] = Mathf.Min(1.0f, allyCount / 5.0f); // Normalizado a max 5 aliados
+
+        // 8. Entrada constante (bias)
+        combatInputs[7] = 1.0f;
+    }
+
+
+    public void OnStateChanged(NPCStateMachine.NPCState newState)
+    {
+        // lógica de cambiar de estado
+        switch (newState)
+        {
+            case NPCStateMachine.NPCState.Navigation:
+                // Configurar para navegación
+                break;
+
+            case NPCStateMachine.NPCState.Combat:
+                // Configurar para combate 
+                break;
+        }
+    }
     void UpdateSensors()
     {
         if (inputs.Length < 8)
@@ -475,6 +637,181 @@ public class NPCController : MonoBehaviour
         inputs[7] = 1f;
     }
 
+    void ApplyCombatOutputs()
+    {
+        if (combatOutputs.Length < 4)
+        {
+            Array.Resize(ref combatOutputs, 4);
+        }
+
+        // Las salidas de la red de combate son:
+        // [0] = Atacar
+        // [1] = Bloquear
+        // [2] = Esquivar
+        // [3] = Contraatacar
+
+        // Determinar la acción con mayor valor
+        int maxOutputIndex = 0;
+        float maxOutputValue = combatOutputs[0];
+
+        for (int i = 1; i < combatOutputs.Length; i++)
+        {
+            if (combatOutputs[i] > maxOutputValue)
+            {
+                maxOutputValue = combatOutputs[i];
+                maxOutputIndex = i;
+            }
+        }
+
+        // Si el valor máximo es mayor que un umbral, ejecutar esa acción
+        if (maxOutputValue > 0.5f)
+        {
+            switch (maxOutputIndex)
+            {
+                case 0: // Atacar
+                    PerformAttack();
+                    break;
+                case 1: // Bloquear
+                    PerformBlock();
+                    break;
+                case 2: // Esquivar
+                    PerformDodge();
+                    break;
+                case 3: // Contraatacar
+                    PerformCounterAttack();
+                    break;
+            }
+        }
+        else
+        {
+            // Si ninguna acción supera el umbral, moverse hacia el enemigo
+            if (stateMachine.currentTarget != null)
+            {
+                MoveTowardsEnemy();
+            }
+        }
+    }
+
+
+    private void PerformAttack()
+    {
+        if (stateMachine.currentTarget == null) return;
+
+        // Orientarse hacia el enemigo
+        Vector3 directionToEnemy = (stateMachine.currentTarget.position - transform.position).normalized;
+        transform.rotation = Quaternion.RotateTowards(
+            transform.rotation,
+            Quaternion.LookRotation(new Vector3(directionToEnemy.x, 0, directionToEnemy.z)),
+            rotationSpeed * Time.deltaTime
+        );
+
+        // Si estamos lo suficientemente cerca y orientados hacia el enemigo
+        float distanceToEnemy = Vector3.Distance(transform.position, stateMachine.currentTarget.position);
+        float dotProduct = Vector3.Dot(transform.forward, directionToEnemy);
+
+        if (distanceToEnemy < 2.0f && dotProduct > 0.8f)
+        {
+            // Realizar ataque (lanzar raycast para simular ataque)
+            RaycastHit hit;
+            if (Physics.Raycast(transform.position + Vector3.up, transform.forward, out hit, 2.0f))
+            {
+                NPCController enemyNPC = hit.collider.GetComponent<NPCController>();
+                if (enemyNPC != null && enemyNPC.npcType != npcType)
+                {
+                    // Ataque exitoso, añadir recompensa al fitness
+                    fitness += 5.0f;
+
+                    // Reducir energía del enemigo (en un sistema real)
+                    // enemyNPC.TakeDamage(10);
+                }
+            }
+
+            // Aplicar un pequeño retroceso tras el ataque
+            rb.AddForce(-transform.forward * 3.0f, ForceMode.Impulse);
+        }
+        else
+        {
+            // Moverse hacia el enemigo si está lejos
+            MoveTowardsEnemy();
+        }
+    }
+
+    private void PerformBlock()
+    {
+        // Estar quieto y orientado hacia el enemigo para bloquear
+        if (stateMachine.currentTarget != null)
+        {
+            Vector3 directionToEnemy = (stateMachine.currentTarget.position - transform.position).normalized;
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation,
+                Quaternion.LookRotation(new Vector3(directionToEnemy.x, 0, directionToEnemy.z)),
+                rotationSpeed * 2 * Time.deltaTime
+            );
+
+            // Velocidad reducida mientras bloquea
+            rb.velocity = Vector3.zero;
+
+            // Si un enemigo está atacando (sensor 4 alto), recompensar por bloquear
+            if (combatInputs[4] > 0.7f)
+            {
+                // Bloqueo exitoso
+                fitness += 3.0f;
+            }
+        }
+    }
+
+    private void PerformDodge()
+    {
+        if (stateMachine.currentTarget == null) return;
+
+        Vector3 directionToEnemy = (stateMachine.currentTarget.position - transform.position).normalized;
+        Vector3 rightDirection = Vector3.Cross(Vector3.up, directionToEnemy).normalized;
+
+        // Determinar dirección de esquiva (derecha o izquierda del enemigo)
+        Vector3 dodgeDirection = Vector3.Dot(rightDirection, transform.right) > 0 ? rightDirection : -rightDirection;
+
+        // Aplicar fuerza para esquivar
+        rb.AddForce(dodgeDirection * moveSpeed * 1.5f, ForceMode.VelocityChange);
+
+        // Si un enemigo está atacando (sensor 4 alto), recompensar por esquivar
+        if (combatInputs[4] > 0.7f)
+        {
+            // Esquiva exitosa
+            fitness += 4.0f;
+        }
+    }
+
+    private void PerformCounterAttack()
+    {
+        // Contraatacar es una combinación de esquivar y atacar
+        // Primero esquivar
+        PerformDodge();
+
+        // Luego atacar si el enemigo está atacando
+        if (combatInputs[4] > 0.7f)
+        {
+            PerformAttack();
+            // Bonificación adicional por contraatacar
+            fitness += 2.0f;
+        }
+    }
+
+    private void MoveTowardsEnemy()
+    {
+        if (stateMachine.currentTarget == null) return;
+
+        Vector3 directionToEnemy = (stateMachine.currentTarget.position - transform.position).normalized;
+
+        // Orientarse hacia el enemigo
+        transform.rotation = Quaternion.RotateTowards(
+            transform.rotation,
+            Quaternion.LookRotation(new Vector3(directionToEnemy.x, 0, directionToEnemy.z)),
+            rotationSpeed * Time.deltaTime
+        );
+
+        // Moverse hacia el enemigo
+        rb.velocity = new Vector3(0, rb.velocity.y, 0) + transform.forward * moveSpeed * 0.8f;
+    }
     void ApplyOutputs()
     {
         if (outputs.Length < 4)
@@ -508,7 +845,6 @@ public class NPCController : MonoBehaviour
             Jump();
         }
 
-        // Actualizamos las animaciones si hay un componente Animator
         if (animator != null)
         {
            // animator.SetFloat("Speed", forwardSpeed / moveSpeed);
@@ -750,8 +1086,7 @@ public class NPCController : MonoBehaviour
         // Calcular fitness final
         fitness = baseReward - timePenalty - repetitivePenalty;
 
-        // Asegurar que el fitness no sea negativo
-        fitness = Mathf.Max(0, fitness);
+        fitness = Mathf.Max(-100f, fitness);
     }
 
     void CheckIdleStatus()
